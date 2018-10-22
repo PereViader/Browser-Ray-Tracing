@@ -1,0 +1,229 @@
+<html>
+
+<head>
+	<title>Ray Tracing</title>
+	<meta http-equiv="content-type" content="text/html;">
+
+	<script src="gl-matrix/common.js"></script>
+	<script type="text/javascript" src="gl-matrix/vec3.js"></script>
+	<script type="text/javascript" src="gl-matrix/vec2.js"></script>
+	<script type="text/javascript" src="gl-matrix/vec4.js"></script>
+	<script type="text/javascript" src="gl-matrix/vec4.js"></script>
+	<script type="text/javascript" src="gl-matrix/mat4.js"></script>
+	<script type="text/javascript" src="gl-matrix/mat3.js"></script>
+	<script type="text/javascript" src="gl-matrix/quat.js"></script>
+
+	<script type="text/javascript" src="Geometry/Transform.js"></script>
+	<script type="text/javascript" src="Geometry/Sphere.js"></script>
+	<script type="text/javascript" src="Geometry/Plane.js"></script>
+	<script type="text/javascript" src="Geometry/Triangle.js"></script>
+	<script type="text/javascript" src="Light/PointLight.js"></script>
+	<script type="text/javascript" src="Visualization/Camera.js"></script>
+	<script type="text/javascript" src="Visualization/Hit.js"></script>
+	<script type="text/javascript" src="Visualization/Ray.js"></script>
+	<script type="text/javascript" src="GraphicEngine.js"></script>
+
+
+	<script type="text/javascript" src="Scenes/mirror_scene.js"></script>
+	<script type="text/javascript" src="Scenes/simple_scene.js"></script>
+	<script type="text/javascript" src="Scenes/simple_scene_more_light.js"></script>
+	<script type="text/javascript" src="Scenes/xmas_scene.js"></script>
+
+	<script type="text/javascript">
+
+		// Var that contains all the screen information;
+		var Screen = {
+			width: 0,
+			height: 0,
+			canvas: null,
+			context: null,
+			buffer: null
+		};
+
+		var Scene;
+
+		// Canvia la escena activa, i pinta de nou la imatge
+		function canviEscena(escena) {
+			switch (escena) {
+				case "simple_scene":
+					Scene = simple_scene;
+					break;
+				case "simple_scene_more_light":
+					Scene = simple_scene_more_light;
+					break;
+				case "mirror_scene":
+					Scene = mirror_scene;
+					break;
+				case "xmas_scene":
+					Scene = xmas_scene;
+				default:
+					console.log("Not found " + escena);
+			}
+			camera = new Camera(Transform.create([0, 3.1, -25]), Screen, Screen.height / Screen.width, 45);
+			window.requestAnimationFrame(drawAnimationFrame);
+
+		}
+
+		var camera;
+
+		//Function that initializes the RayTracing 
+
+		// Inicialitza els components necess�ris per al RayTracing
+		function initialize() {
+			Screen.canvas = document.getElementById("glcanvas");
+			if (Screen.canvas == null) {
+				alert("Invalid element: " + id);
+				return;
+			}
+			Screen.context = Screen.canvas.getContext("2d");
+			if (Screen.context == null) {
+				alert("Could not get context");
+				return;
+			}
+			Screen.width = Screen.canvas.width;
+			Screen.height = Screen.canvas.height;
+			Screen.buffer = Screen.context.createImageData(Screen.width, Screen.height);
+
+			PlotError(Screen);
+			Screen.context.putImageData(Screen.buffer, 0, 0);
+		}
+
+		// Carrega la primera escena al frame
+		function RtStart() {
+			initialize();
+			canviEscena("mirror_scene");
+
+			window.requestAnimationFrame(drawAnimationFrame);
+		}
+
+		// Fa el ray casting i pinta el resultat a la pantalla
+		function drawAnimationFrame() {
+			RayCasting(Screen, camera);
+			Screen.context.putImageData(Screen.buffer, 0, 0);
+		}
+
+		// Variables de control de la quantitat de moviment per cada polsaci� de tecla
+		var movementSpeed = 3; 	// Velocitat de moviment lineal
+		var turnSpeed = 12; 	// Velocitat de moviment angular
+
+		// Reacciona a les polsacions de tecles amb el moviment adient, recalculant el ray casting
+		document.addEventListener('keydown', (event) => {
+			const keyName = event.key;
+			switch (event.keyCode) {
+				case 65: //a
+					camera.transform.move(vec3.scale([], vec3.left, movementSpeed));
+					break;
+				case 83: //s
+					camera.transform.move(vec3.scale([], vec3.backward, movementSpeed));
+					break;
+				case 68: //d
+					camera.transform.move(vec3.scale([], vec3.right, movementSpeed));
+					break;
+				case 87: //w
+					camera.transform.move(vec3.scale([], vec3.forward, movementSpeed));
+					break;
+				case 81: // q
+					camera.transform.move(vec3.scale([], vec3.up, movementSpeed));
+					break;
+				case 69: // e
+					camera.transform.move(vec3.scale([], vec3.down, movementSpeed));
+					break;
+				case 37: //left-arrow
+					camera.transform.worldRotation([0, -turnSpeed, 0]);
+					break;
+				case 39: //right-arrow
+					camera.transform.worldRotation([0, turnSpeed, 0]);
+					break;
+				case 40: //down-arrow
+					camera.transform.localRotation([turnSpeed, 0, 0]);
+					break;
+				case 38: //up-arrow
+					camera.transform.localRotation([-turnSpeed, 0, 0]);
+					break;
+				default:
+			}
+			window.requestAnimationFrame(drawAnimationFrame);
+
+		}, false);
+
+		function createColor(color) {
+			var size = Screen.width * Screen.height * 4;
+			for (var i = 0; i < size; i += 4)
+				qplot(i, color);
+		}
+
+		function PlotError(Screen) {
+			var size = Screen.width * Screen.height;
+			for (var x = 0; x < Screen.width; x++) {
+				for (y = 0; y < Screen.height; y++) {
+					var color = [0, x / 255, y / 255, 1]
+					plot(x, y, color);
+				}
+			}
+		}
+
+		// Plots a point at (x,y)
+		function plot(x, y, color) {
+			var index = (x + y * Screen.buffer.width) * 4;
+			Screen.buffer.data[index + 0] = color[0] * 255;
+			Screen.buffer.data[index + 1] = color[1] * 255;
+			Screen.buffer.data[index + 2] = color[2] * 255;
+			Screen.buffer.data[index + 3] = color[3] * 255;
+			return index;
+		}
+
+		function qplot(index, color) {
+			Screen.buffer.data[index + 0] = color[0] * 255;
+			Screen.buffer.data[index + 1] = color[1] * 255;
+			Screen.buffer.data[index + 2] = color[2] * 255;
+			Screen.buffer.data[index + 3] = color[3] * 255;
+		}
+	</script>
+
+
+	<style type="text/css">
+		#loadingtext {
+			position: absolute;
+			top: 250px;
+			left: 150px;
+			font-size: 2em;
+			color: white;
+		}
+	</style>
+</head>
+
+<body onload="RtStart();">
+	<center>
+		<h1>Ray Tracing</h1>
+		<canvas id="glcanvas" style="border: solid;" width="400" height="400"></canvas>
+		<br /><br /><br />
+		Scene selector:
+
+		<select onchange="canviEscena(this.value);">
+			<option value="mirror_scene">Scene 1</option>
+			<option value="simple_scene">Scene 2</option>
+			<option value="simple_scene_more_light">Scene 2 + More Light</option>
+			<option value="xmas_scene">Christmas scene</option>
+		</select>
+		<br />
+		<small> (Loading scenes can take a while) </small>
+		<br /><br />
+
+		<table>
+			<tr>
+				<th>Movement</th>
+				<th>Aim</th>
+			</tr>
+			<tr>
+				<td><img src="img/wasdqe.png" width=300px height=200px></td>
+				<td><img src="img/arrowKeys.png" width=300px height=200px></td>
+			</tr>
+		</table>
+		<br />
+		<p>Note:</p>
+		<p>The images are not clickable</p>
+		<p>Press the webpage with the mouse and use the keyboard to control the camera.</p>
+	</center>
+</body>
+
+</html>
