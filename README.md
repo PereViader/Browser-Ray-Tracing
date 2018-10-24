@@ -12,5 +12,5 @@ Here are some screenshots of the project in action
 
 ![Ray Tracing 2](https://github.com/PereViader/Browser-Ray-Tracing/blob/master/docs/img/ray_tracing2.png)
 
-![Ray Tracing 3](https://github.com/PereViader/Browser-Ray-Tracing/blob/master/docs/img/ray_tracing2.png)
+![Ray Tracing 3](https://github.com/PereViader/Browser-Ray-Tracing/blob/master/docs/img/ray_tracing3.png)
 
